@@ -59,8 +59,9 @@ counts are 4,545 / 42,019 / 157,205 for classes 1 / 2 / 3.
 - `txs_features.csv` (663 MB) is too large for git (GitHub rejects files > 100 MB),
   so it is attached to the
   [data-v1 release](https://github.com/gauravdev95/Homophily-Aware-GNN-Fraud-Ring-Detection/releases/tag/data-v1).
-  Download `txs_features.csv` from that release page and place it at
-  `data/raw/elliptic_pp/txs_features.csv`.
+  Direct download (no login needed, public repo):
+  <https://github.com/gauravdev95/Homophily-Aware-GNN-Fraud-Ring-Detection/releases/download/data-v1/txs_features.csv>
+  Place it at `data/raw/elliptic_pp/txs_features.csv`.
 
 > Note: the `txs_features.csv` release asset is being uploaded — if it is not on
 > the release page yet, use the official Drive source below in the meantime.
