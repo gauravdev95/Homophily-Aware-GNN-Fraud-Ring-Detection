@@ -10,9 +10,13 @@ venv/
 
 # Raw + processed data: large files, downloaded from official sources, never committed.
 # (GitHub rejects files > 100 MB; see data/README.md for download instructions.)
+# Exception: the two small Elliptic++ CSVs (< 10 MB) ARE committed; only the
+# 663 MB txs_features.csv lives on the GitHub Release (see data/README.md).
 data/raw/**
 !data/raw/**/
 !data/raw/**/.gitkeep
+!data/raw/elliptic_pp/txs_classes.csv
+!data/raw/elliptic_pp/txs_edgelist.csv
 data/processed/**
 !data/processed/**/
 !data/processed/**/.gitkeep

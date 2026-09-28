@@ -52,13 +52,25 @@ Expected: `txs_features.csv` and `txs_classes.csv` have 203,769 data rows each,
 `txs_edgelist.csv` has 234,355 data rows, `txId`s match across files, and class
 counts are 4,545 / 42,019 / 157,205 for classes 1 / 2 / 3.
 
+## Where the data lives
+
+- `txs_classes.csv` (2.4 MB) and `txs_edgelist.csv` (4.5 MB) are **committed in this
+  repo** under `data/raw/elliptic_pp/`.
+- `txs_features.csv` (663 MB) is too large for git (GitHub rejects files > 100 MB),
+  so it is attached to the
+  [data-v1 release](https://github.com/gauravdev95/Homophily-Aware-GNN-Fraud-Ring-Detection/releases/tag/data-v1).
+  Download `txs_features.csv` from that release page and place it at
+  `data/raw/elliptic_pp/txs_features.csv`.
+
+The official upstream source (Google Drive, see below) remains the canonical
+download location; the release asset is provided for convenience.
+
 ## Version control policy
 
-Raw data is **excluded from git** (see the root `.gitignore`):
-
-- `data/raw/**` — never committed (files are hundreds of MB; GitHub rejects files > 100 MB
-  and Git LFS quotas make it impractical for a dataset of this size).
+- `data/raw/elliptic_pp/txs_classes.csv` and `txs_edgelist.csv` — committed (small files).
+- `txs_features.csv` — **not** committed; fetched from the data-v1 release above.
 - `data/processed/**` — regenerated from raw; not committed.
-- Only `.gitkeep` placeholders and this README are tracked under `data/`.
+- Only `.gitkeep` placeholders and this README are tracked elsewhere under `data/`.
 
-Anyone reproducing this work downloads the dataset from the official source above.
+Anyone reproducing this work needs all three `txs_*.csv` files in `data/raw/elliptic_pp/`
+(two from the repo, one from the release — or all three from the official source below).
