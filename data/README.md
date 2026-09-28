@@ -62,6 +62,9 @@ counts are 4,545 / 42,019 / 157,205 for classes 1 / 2 / 3.
   Download `txs_features.csv` from that release page and place it at
   `data/raw/elliptic_pp/txs_features.csv`.
 
+> Note: the `txs_features.csv` release asset is being uploaded — if it is not on
+> the release page yet, use the official Drive source below in the meantime.
+
 The official upstream source (Google Drive, see below) remains the canonical
 download location; the release asset is provided for convenience.
 
