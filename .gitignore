@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Raw + processed data: large files, downloaded from official sources, never committed.
+# (GitHub rejects files > 100 MB; see data/README.md for download instructions.)
+data/raw/**
+!data/raw/**/
+!data/raw/**/.gitkeep
+data/processed/**
+!data/processed/**/
+!data/processed/**/.gitkeep
+
+# Model weights & checkpoints
+models/**/*.pt
+models/**/*.pth
+models/**/*.bin
+models/**/*.onnx
+!models/**/.gitkeep
+
+# Results: keep figures + metrics, ignore logs
+results/logs/**
+!results/logs/**/
+!results/logs/**/.gitkeep
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets
+.env
+*.pem
+*.key
