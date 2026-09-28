@@ -130,6 +130,20 @@ with `python start.py --no-download`.
 → A file is corrupted or truncated. Delete it from `data/raw/elliptic_pp/`
 and let `start.py` re-download it.
 
+**Windows: `ImportError: DLL load failed ... An Application Control policy has blocked this file`**
+→ Your project folder is inside **OneDrive** (or another cloud-synced folder).
+OneDrive interferes with the compiled DLLs (`.pyd` files) inside a Python
+virtualenv and Windows blocks them from loading. Fix:
+1. Move the project folder **out of OneDrive** — e.g. to
+   `C:\Users\<you>\major\Homophily-Aware-GNN-Fraud-Ring-Detection`
+   (any local, non-synced path works).
+2. Delete the old `.venv/` folder.
+3. Re-run `python start.py` from the new location.
+If it still happens outside OneDrive: open **Windows Security → Virus & threat
+protection → Protection history** — if a `.pyd` file was blocked, add your
+project folder under **Exclusions** (Virus & threat protection settings →
+Manage settings → Exclusions → Add an exclusion → Folder).
+
 **Windows: `python` not recognized**
 → Reinstall Python with **"Add python.exe to PATH"** checked, then open a new
 terminal.
