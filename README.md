@@ -18,6 +18,30 @@ smoothing over heterophilic edges hurts detection. This project:
 
 > **Current status:** repository + dataset setup complete. No models built or trained yet.
 
+## Quick start
+
+One command sets up everything — virtualenv, dependencies, dataset download,
+verification:
+
+```bash
+python start.py
+```
+
+`start.py` (stdlib only, works on Windows/macOS/Linux) will:
+
+1. Create `.venv/` and install `requirements.txt`
+2. Download any missing dataset files into `data/raw/elliptic_pp/`
+   (`txs_features.csv` comes from the
+   [data-v1 release](https://github.com/gauravdev95/Homophily-Aware-GNN-Fraud-Ring-Detection/releases/tag/data-v1),
+   Google Drive is the automatic fallback)
+3. Run `scripts/verify_data.py` to sanity-check the dataset
+
+Options: `--no-download` (fail instead of downloading), `--no-verify`,
+`--reinstall` (force-reinstall deps).
+
+Full step-by-step instructions, manual `pip install` path, and troubleshooting:
+**[SETUP.md](SETUP.md)**.
+
 ## Dataset
 
 **Elliptic++ Transactions Dataset** — 203,769 Bitcoin transactions, 234,355 money-flow edges,
@@ -29,8 +53,11 @@ smoothing over heterophilic edges hurts detection. This project:
 | `data/raw/elliptic_pp/txs_classes.csv` | Labels: `1` = illicit, `2` = licit, `3` = unknown |
 | `data/raw/elliptic_pp/txs_edgelist.csv` | Transaction → transaction money-flow edges |
 
-The raw CSVs are **not committed** to this repository (see `data/README.md` for official
-download instructions). The Actors/Wallet dataset is intentionally out of scope for now.
+The two small CSVs (`txs_classes.csv`, `txs_edgelist.csv`) are committed in
+`data/raw/elliptic_pp/`; the 663 MB `txs_features.csv` is fetched from the
+[data-v1 release](https://github.com/gauravdev95/Homophily-Aware-GNN-Fraud-Ring-Detection/releases/tag/data-v1)
+(see `data/README.md` for details and official download sources).
+The Actors/Wallet dataset is intentionally out of scope for now.
 
 ## Project structure
 
