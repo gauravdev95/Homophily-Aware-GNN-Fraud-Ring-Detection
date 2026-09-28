@@ -267,13 +267,71 @@ def ensure_data(no_download: bool) -> None:
 
 # ---------------------------------------------------------------- verify
 
+POLICY_KEYWORDS = ("Application Control", "DLL load failed", "blocked this file")
+
+WINDOWS_POLICY_FIX = """
+  !!  Windows blocked a compiled Python package file (Application Control /
+      Code Integrity policy). Your data and code are fine — only the
+      compiled extension (.pyd) cannot load on this machine.
+
+  Fix options (pick one):
+   1. Move the project OUT of OneDrive / cloud-synced folders, delete .venv,
+      and re-run:  python start.py
+   2. Windows Security -> Virus & threat protection -> Protection history:
+      if a .pyd was flagged, add this project folder under Exclusions, delete
+      .venv, and re-run:  python start.py --reinstall
+   3. On a college/office laptop the policy may be set by IT — ask them to
+      allow the blocked file, or verify without pandas:
+        .\\.venv\\Scripts\\python.exe scripts\\verify_data.py --no-pandas
+   4. Skip verification for now:  python start.py --no-verify
+  See SETUP.md for details.
+"""
+
+
+def _run_tee(cmd: list[str]) -> tuple[int, str]:
+    """Run cmd, streaming output live to the terminal while capturing it."""
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True, bufsize=1)
+    chunks: list[str] = []
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        sys.stdout.write(line)
+        chunks.append(line)
+    proc.wait()
+    return proc.returncode, "".join(chunks)
+
+
+def smoke_test_imports(py: Path) -> None:
+    """Check the key compiled packages actually import in the new venv.
+
+    On some Windows machines an Application Control / Code Integrity policy
+    blocks pandas' .pyd files even though pip installed them fine. Detect
+    that here and explain it instead of failing later with a raw traceback.
+    """
+    info("checking installed packages import cleanly ...")
+    rc, out = _run_tee([str(py), "-c",
+                        "import pandas, numpy, scipy, sklearn, matplotlib; "
+                        "print('imports ok')"])
+    if rc == 0:
+        ok("packages import cleanly")
+        return
+    if any(k in out for k in POLICY_KEYWORDS):
+        print(_c("33", WINDOWS_POLICY_FIX))
+        warn("continuing without working pandas — notebooks will need the "
+             "policy fix above, but data verification can use its stdlib fallback")
+    else:
+        warn("package import test failed (see output above); continuing anyway")
+
+
 def run_verify(py: Path) -> None:
     if not VERIFY.exists():
         warn(f"{VERIFY.name} not found, skipping verification")
         return
     info(f"running {VERIFY.name} ...")
-    rc = subprocess.run([str(py), str(VERIFY)]).returncode
+    rc, out = _run_tee([str(py), str(VERIFY)])
     if rc != 0:
+        if any(k in out for k in POLICY_KEYWORDS):
+            print(_c("33", WINDOWS_POLICY_FIX))
         fail("data verification reported problems (see output above).")
     ok("dataset verified")
 
@@ -305,6 +363,7 @@ def main() -> None:
 
     step(n, total, "Installing dependencies"); n += 1
     install_deps(py, args.reinstall)
+    smoke_test_imports(py)
 
     step(n, total, "Checking dataset"); n += 1
     ensure_data(args.no_download)
@@ -314,9 +373,15 @@ def main() -> None:
         run_verify(py)
 
     print(f"\n{_c('1;32', 'All set!')}")
-    print("  Activate the env :  " + (_c('1', r".venv\Scripts\activate") if os.name == "nt"
-                                      else _c('1', "source .venv/bin/activate")))
+    if os.name == "nt":
+        print("  Activate the env :  " + _c('1', r".\.venv\Scripts\Activate.ps1"))
+        print("                      " + _c('33', "(PowerShell blocks it? run: "
+              "Set-ExecutionPolicy -Scope CurrentUser RemoteSigned — or skip activation "
+              "entirely: ") + _c('1', r".\.venv\Scripts\python.exe") + _c('33', " <script>"))
+    else:
+        print("  Activate the env :  " + _c('1', "source .venv/bin/activate"))
     print("  Re-verify data   :  " + _c('1', "python scripts/verify_data.py"))
+    print("                       " + _c('33', "(add --no-pandas if a Windows policy blocks pandas)"))
     print("  Explore          :  " + _c('1', "notebooks/01_data_exploration.ipynb"))
 
 

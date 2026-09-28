@@ -131,18 +131,35 @@ with `python start.py --no-download`.
 and let `start.py` re-download it.
 
 **Windows: `ImportError: DLL load failed ... An Application Control policy has blocked this file`**
-→ Your project folder is inside **OneDrive** (or another cloud-synced folder).
-OneDrive interferes with the compiled DLLs (`.pyd` files) inside a Python
-virtualenv and Windows blocks them from loading. Fix:
-1. Move the project folder **out of OneDrive** — e.g. to
-   `C:\Users\<you>\major\Homophily-Aware-GNN-Fraud-Ring-Detection`
-   (any local, non-synced path works).
-2. Delete the old `.venv/` folder.
-3. Re-run `python start.py` from the new location.
-If it still happens outside OneDrive: open **Windows Security → Virus & threat
-protection → Protection history** — if a `.pyd` file was blocked, add your
-project folder under **Exclusions** (Virus & threat protection settings →
-Manage settings → Exclusions → Add an exclusion → Folder).
+→ Windows is blocking one of pandas' compiled files (`.pyd`) — pip installed
+everything fine, but the OS refuses to *load* it. Confirm in
+**Event Viewer → Windows Logs → System** (or *Applications and Services Logs →
+Microsoft → Windows → CodeIntegrity → Operational*): a Code Integrity event
+names the blocked file and the policy ID.
+
+Fix options, in order:
+1. **Move the project out of OneDrive / cloud-synced folders** (e.g. to
+   `C:\Users\<you>\major\Homophily-Aware-GNN-Fraud-Ring-Detection`), delete the
+   old `.venv/`, and re-run `python start.py`. OneDrive is the most common
+   trigger for this error.
+2. **Windows Security → Virus & threat protection → Protection history** — if a
+   `.pyd` file was flagged, add your project folder under **Exclusions**
+   (Manage settings → Exclusions → Add an exclusion → Folder), delete `.venv/`,
+   and re-run `python start.py --reinstall`.
+3. **College/office laptop?** The policy may be deployed by IT — only they can
+   allow the file. Meanwhile the project still works around it:
+   - `.\.venv\Scripts\python.exe scripts\verify_data.py --no-pandas`
+     verifies the dataset with pure stdlib (no pandas needed), and
+   - `python start.py --no-verify` skips verification entirely.
+   Note: the analysis notebooks themselves need pandas, so the policy must be
+   fixed before Phase 2/3 work can run on that machine.
+
+**Windows PowerShell: `running scripts is disabled on this system`**
+→ This only blocks `.\.venv\Scripts\Activate.ps1`. Two workarounds, no admin needed:
+- Run once: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then activate normally; or
+- Skip activation entirely — call the venv's Python directly:
+  `.\.venv\Scripts\python.exe scripts\verify_data.py`
+`start.py` already uses the venv Python directly, so setup never needs activation.
 
 **Windows: `python` not recognized**
 → Reinstall Python with **"Add python.exe to PATH"** checked, then open a new
