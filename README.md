@@ -26,7 +26,8 @@ smoothing over heterophilic edges hurts detection. This project:
 |---|---|---|
 | **Phase 1 — Setup** | ✅ Complete | Repo scaffolding, Elliptic++ dataset downloaded & verified (`scripts/verify_data.py` → PASS), one-command setup (`python start.py`), `requirements.txt`, `SETUP.md` guide |
 | **Phase 2 — Exploratory Data Analysis** | ✅ Complete | Executed notebook `notebooks/01_data_exploration.ipynb` (32 cells, 0 errors), 9 figures in `results/figures/eda/`, findings in `results/eda_summary.md`, leakage audit in `results/leakage_analysis.md` |
-| **Phase 3 — Graph construction & modeling** | ⬜ Not started | Baselines → homophily-aware GNNs → fraud-ring evaluation (see Roadmap) |
+| **Phase 3 — Step 3: Graph construction & temporal split** | ✅ Complete | Directed money-flow graph built & validated (`notebooks/02_graph_construction.ipynb`, 7 cells, 0 errors); temporal train/val/test splits defined — see below |
+| **Phase 3 — Steps 4–6: Baselines → GNN → evaluation** | ⬜ Not started | Tabular baselines, homophily-aware GNNs, fraud-ring evaluation (see Roadmap) |
 
 **Headline findings from Phase 2** (all computed, none estimated):
 
@@ -45,6 +46,39 @@ smoothing over heterophilic edges hurts detection. This project:
 
 Full detail: [`results/eda_summary.md`](results/eda_summary.md) ·
 [`results/leakage_analysis.md`](results/leakage_analysis.md)
+
+---
+
+## Phase 3 — Graph construction & temporal split ✅
+
+Built the **directed transaction → transaction money-flow graph** from the raw
+CSVs (read-only) and defined **temporal** train/val/test splits. Executed end to
+end in `notebooks/02_graph_construction.ipynb` (7 code cells, 0 errors);
+pipeline script: `scripts/build_graph.py`.
+
+**Graph:** 203,769 nodes · 234,355 directed edges · density 5.6e-06 ·
+49 weakly connected components · mean/max in-degree 1.15/284 · out-degree 1.15/472.
+
+**Validation (all PASS):** 0 cross-step edges · 49 components map 1:1 onto the
+49 timesteps · 0 self-loops · 0 isolated nodes.
+
+**Temporal splits** — never random, so evaluation measures generalization to
+future transactions. All edges are intra-timestep, so no edge crosses a split
+boundary (graph-clean by construction):
+
+| Split | Timesteps | Nodes | Edges | Illicit | Licit | Unknown |
+|---|---|---|---|---|---|---|
+| train | 1–34 | 136,265 | 156,843 | 3,462 | 26,432 | 106,371 |
+| val | 35–41 | 30,680 | 35,360 | 675 | 7,154 | 22,851 |
+| test | 42–49 | 36,824 | 42,152 | 408 | 8,433 | 27,983 |
+
+![Graph size per temporal split](results/figures/graph/graph_split_sizes.png)
+![Label distribution per split](results/figures/graph/graph_labels_per_split.png)
+![Nodes per timestep by split](results/figures/graph/graph_nodes_per_timestep.png)
+
+**Artifacts:** `data/processed/node_splits.csv` (txId, timestep, split, class) ·
+`data/processed/graph_splits.json` · `results/graph_stats.json` ·
+[`results/graph_construction_summary.md`](results/graph_construction_summary.md)
 
 ---
 
@@ -168,7 +202,7 @@ Rules that always apply:
 │   └── processed/           # Derived artifacts (gitignored)
 ├── notebooks/
 │   ├── 01_data_exploration.ipynb   # ✅ Phase 2, executed
-│   ├── 02_graph_construction.ipynb # ⬜ Phase 3
+│   ├── 02_graph_construction.ipynb # ✅ Phase 3 step 3, executed
 │   ├── 03_homophily_analysis.ipynb # ⬜ Phase 3
 │   ├── 04_baseline_models.ipynb    # ⬜ Phase 3
 │   └── 05_gnn_experiments.ipynb    # ⬜ Phase 3
@@ -180,7 +214,9 @@ Rules that always apply:
 │   └── explainability/      # GNNExplainer, attention, SHAP
 ├── scripts/
 │   ├── verify_data.py       # Read-only dataset sanity checks
-│   ├── build_eda_notebook.py / run_notebook.py / gen_eda_reports.py
+│   ├── build_graph.py       # Phase 3 step 3: graph + temporal splits + figures
+│   ├── build_eda_notebook.py / build_graph_notebook.py / run_notebook.py
+│   └── gen_eda_reports.py
 ├── results/
 │   ├── eda_summary.md       # Phase 2 findings (computed statistics)
 │   ├── leakage_analysis.md  # Leakage audit
@@ -196,8 +232,9 @@ Rules that always apply:
 - [x] Repository scaffolding + Elliptic++ dataset setup & verification
 - [x] `01` Data exploration — distributions, missing values, temporal structure,
       feature analysis, preliminary homophily (see `results/eda_summary.md`)
-- [ ] `02` Graph construction — directed tx-tx graph; **temporal** splits
-      (train steps 1–34, val 35–41, test 42–49), never random
+- [x] `02` Graph construction — directed tx-tx money-flow graph built & validated;
+      **temporal** splits: train steps 1–34, val 35–41, test 42–49 (never random);
+      artifacts in `data/processed/` (see Phase 3 section above)
 - [ ] `03` Homophily analysis — edge/node homophily, class-wise assortativity,
       per-timestep drift, structural baseline (0.9537) to beat
 - [ ] `04` Baseline models — LogReg / RandomForest / XGBoost / MLP
