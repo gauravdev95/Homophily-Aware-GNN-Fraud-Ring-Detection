@@ -76,6 +76,13 @@ boundary (graph-clean by construction):
 ![Label distribution per split](results/figures/graph/graph_labels_per_split.png)
 ![Nodes per timestep by split](results/figures/graph/graph_nodes_per_timestep.png)
 
+**Real transaction flow (teacher-demo figure):** one real fraud transaction
+(TX 362961719, timestep 19) with its actual neighbours — 3 fraud senders on
+the left, one fraud + one genuine receiver on the right. Every node and arrow
+is real Elliptic++ data, drawn by `scripts/build_flow_figure.py`:
+
+![Real transaction flow around a fraud transaction](results/figures/graph/transaction_flow_sample.png)
+
 **Artifacts:** `data/processed/node_splits.csv` (txId, timestep, split, class) ·
 `data/processed/graph_splits.json` · `results/graph_stats.json` ·
 [`results/graph_construction_summary.md`](results/graph_construction_summary.md)

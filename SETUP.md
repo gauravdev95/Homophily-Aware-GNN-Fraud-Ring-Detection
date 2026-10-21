@@ -167,6 +167,33 @@ terminal.
 
 ---
 
+## Running in VS Code (easiest way)
+
+1. **Open the project folder** in VS Code (`File → Open Folder`).
+2. **Install the Python extension** (Microsoft) if not already installed.
+3. **Open a terminal** in VS Code (`` Ctrl+` ``) and run the one-command setup:
+   ```bash
+   python start.py
+   ```
+   This creates `.venv/`, installs dependencies, downloads data, and verifies
+   everything — no manual steps needed.
+4. **Select the interpreter:** `Ctrl+Shift+P → Python: Select Interpreter →
+   .venv` (VS Code usually detects `.venv` automatically).
+5. **Run notebooks:** open `notebooks/01_data_exploration.ipynb` or
+   `notebooks/02_graph_construction.ipynb` and click **Run All**. Both
+   notebooks are fully executed with saved outputs — they re-run cleanly
+   from a fresh checkout.
+6. **Run scripts directly:** `python scripts/verify_data.py`,
+   `python scripts/build_graph.py`, or
+   `python scripts/build_flow_figure.py` from the VS Code terminal
+   (no activation needed if you call `.venv` Python directly:
+   `.venv\Scripts\python.exe <script>` on Windows,
+   `.venv/bin/python <script>` on macOS/Linux).
+
+> **Note:** keep the project folder **outside OneDrive / cloud-synced
+> folders** — OneDrive breaks Python virtualenv DLLs on Windows
+> (see Troubleshooting below).
+
 ## What's next
 
 - `notebooks/01_data_exploration.ipynb` — exploratory data analysis (Phase 2, complete)
