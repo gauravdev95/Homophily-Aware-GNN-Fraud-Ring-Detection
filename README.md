@@ -27,7 +27,9 @@ smoothing over heterophilic edges hurts detection. This project:
 | **Phase 1 — Setup** | ✅ Complete | Repo scaffolding, Elliptic++ dataset downloaded & verified (`scripts/verify_data.py` → PASS), one-command setup (`python start.py`), `requirements.txt`, `SETUP.md` guide |
 | **Phase 2 — Exploratory Data Analysis** | ✅ Complete | Executed notebook `notebooks/01_data_exploration.ipynb` (32 cells, 0 errors), 9 figures in `results/figures/eda/`, findings in `results/eda_summary.md`, leakage audit in `results/leakage_analysis.md` |
 | **Phase 3 — Step 3: Graph construction & temporal split** | ✅ Complete | Directed money-flow graph built & validated (`notebooks/02_graph_construction.ipynb`, 7 cells, 0 errors); temporal train/val/test splits defined — see below |
-| **Phase 3 — Steps 4–6: Baselines → GNN → evaluation** | ⬜ Not started | Tabular baselines, homophily-aware GNNs, fraud-ring evaluation (see Roadmap) |
+| **Phase 3 — Step 4: Homophily analysis** | ✅ Complete | Edge/node homophily recomputed & confirmed vs Phase 2 (h_lab 0.9537 vs baseline 0.9043); per-timestep drift; feature homophily; transductive majority-neighbour structural baseline (`notebooks/03_homophily_analysis.ipynb`, 8 cells, 0 errors) |
+| **Phase 3 — Step 5: Baseline models** | ✅ Complete | LogReg / RandomForest / XGBoost / MLP / Dummy on temporal splits, class weighting only (`notebooks/04_baseline_models.ipynb`, 7 cells, 0 errors) — best: XGBoost, test PR-AUC 0.5652 |
+| **Phase 3 — Step 6: GNN experiments** | ⬜ Not started | GCN / GAT / GraphSAGE → homophily-aware variants, fraud-ring evaluation (see Roadmap) |
 
 **Headline findings from Phase 2** (all computed, none estimated):
 
@@ -46,6 +48,26 @@ smoothing over heterophilic edges hurts detection. This project:
 
 Full detail: [`results/eda_summary.md`](results/eda_summary.md) ·
 [`results/leakage_analysis.md`](results/leakage_analysis.md)
+
+**Headline findings from Steps 4–5** (all computed, none estimated):
+
+- **Homophily confirmed, with a twist:** aggregate h_lab 0.9537 is close to the
+  random-mixing baseline 0.9043, but per-class conditioning tells the real
+  story — illicit nodes link to illicit nodes at 5.9× chance, licit nodes mix
+  more broadly than chance (0.72×). Node-level homophily is bimodal for
+  illicit nodes (mean 0.51; 45% have zero same-label neighbours, 46% have
+  all). No temporal drift in homophily across the 49 steps.
+- **Best baseline: XGBoost — test PR-AUC 0.5652** (val 0.9344), ahead of
+  Random Forest (0.5407), MLP (0.3948), LogReg (0.2025) and Dummy (0.0461).
+  Every model drops sharply from val to test — future transactions are
+  genuinely harder, which is exactly what the temporal split exposes.
+- **Structural baseline cleared:** the transductive majority-neighbour
+  reference (PR-AUC 0.3932 on covered test nodes) is beaten by every
+  non-dummy model — but it peeks at neighbour labels, so it is an upper
+  bound, not a fair model.
+
+Full detail: [`results/homophily_analysis.md`](results/homophily_analysis.md) ·
+[`results/baseline_summary.md`](results/baseline_summary.md)
 
 ---
 
@@ -86,6 +108,68 @@ is real Elliptic++ data, drawn by `scripts/build_flow_figure.py`:
 **Artifacts:** `data/processed/node_splits.csv` (txId, timestep, split, class) ·
 `data/processed/graph_splits.json` · `results/graph_stats.json` ·
 [`results/graph_construction_summary.md`](results/graph_construction_summary.md)
+
+---
+
+## Phase 3 — Homophily analysis & baseline models ✅
+
+### Step 4 — Homophily analysis
+
+Recomputed and confirmed the Phase 2 homophily numbers, then went deeper.
+Executed end to end in `notebooks/03_homophily_analysis.ipynb` (8 code cells,
+0 errors); builder script: `scripts/build_homophily_notebook.py`.
+
+- **Edge homophily:** h_lab **0.9537** vs random-mixing baseline **0.9043**;
+  illicit→illicit enrichment **5.9×**, licit **0.72×**, unknown 1.03×.
+  P(dst=illicit | src=illicit) = 0.296, P(dst=licit | src=licit) = 0.681.
+- **Node homophily:** illicit nodes mean 0.51 (bimodal — 45% have zero
+  same-label neighbours, 46% have all); licit nodes mean 0.98.
+- **Drift:** none — h_lab slope −0.00001/step, illicit-rate slope −0.0004/step.
+- **Feature homophily:** mean |standardised local-feature difference| 0.473
+  across real edges vs 0.484 across random pairs (ratio 0.98) — modest.
+- **Structural baseline** (majority-neighbour vote, transductive upper bound
+  that peeks at neighbour labels): PR-AUC 0.3932, ROC-AUC 0.7256, F1@0.5
+  0.5158 on covered test nodes (coverage 73.1%).
+
+![Same-class linkage enrichment by class](results/figures/homophily/homophily_enrichment_bars.png)
+![Node-level homophily distribution](results/figures/homophily/homophily_node_histograms.png)
+
+**Artifacts:** `results/homophily_stats.json` ·
+[`results/homophily_analysis.md`](results/homophily_analysis.md) · figures in
+`results/figures/homophily/`
+
+### Step 5 — Baseline models
+
+Non-graph baselines on the temporal splits — the bar the GNN (Step 6) has to
+beat. Executed end to end in `notebooks/04_baseline_models.ipynb` (7 code
+cells, 0 errors); pipeline script: `scripts/run_baselines.py`.
+
+**Setup:** all 183 features; supervised on labelled nodes only (unknowns kept
+in the dataset, no target); median imputation fit on train only + one
+missingness-indicator column; StandardScaler fit on train only (LogReg/MLP
+only); class weighting only — no SMOTE, no oversampling; selection on val
+PR-AUC, final numbers on test.
+
+| Model | Val PR-AUC | Test PR-AUC | Test ROC-AUC | Test F1@0.5 |
+|---|---|---|---|---|
+| **XGBoost** | **0.9344** | **0.5652** | 0.8542 | 0.5928 |
+| Random Forest | 0.9277 | 0.5407 | 0.8346 | 0.5860 |
+| MLP | 0.6404 | 0.3948 | 0.8541 | 0.3432 |
+| Logistic Regression | 0.3823 | 0.2025 | 0.8571 | 0.2144 |
+| Dummy (stratified) | 0.0882 | 0.0461 | 0.4991 | 0.0644 |
+
+![Precision–Recall curves on test](results/figures/baselines/baselines_pr_curves.png)
+
+**Reading the results:** the val→test drop (XGBoost 0.934 → 0.565) is the
+temporal gap — future transactions are genuinely harder, and a random split
+would have hidden it. ROC-AUC flatters here (LogReg has the highest test
+ROC-AUC, 0.8571, but the second-worst PR-AUC), which is why PR-AUC is the
+primary metric. XGBoost's test PR-AUC of **0.5652** is the number Step 6
+must beat.
+
+**Artifacts:** `results/baseline_results.json` ·
+[`results/baseline_summary.md`](results/baseline_summary.md) · figures in
+`results/figures/baselines/`
 
 ---
 
@@ -210,9 +294,9 @@ Rules that always apply:
 ├── notebooks/
 │   ├── 01_data_exploration.ipynb   # ✅ Phase 2, executed
 │   ├── 02_graph_construction.ipynb # ✅ Phase 3 step 3, executed
-│   ├── 03_homophily_analysis.ipynb # ⬜ Phase 3
-│   ├── 04_baseline_models.ipynb    # ⬜ Phase 3
-│   └── 05_gnn_experiments.ipynb    # ⬜ Phase 3
+│   ├── 03_homophily_analysis.ipynb # ✅ Phase 3 step 4, executed
+│   ├── 04_baseline_models.ipynb    # ✅ Phase 3 step 5, executed
+│   └── 05_gnn_experiments.ipynb    # ⬜ Phase 3 step 6
 ├── src/
 │   ├── data/                # Dataset loading, graph building
 │   ├── models/              # GNN architectures (incl. homophily-aware variants)
@@ -222,11 +306,17 @@ Rules that always apply:
 ├── scripts/
 │   ├── verify_data.py       # Read-only dataset sanity checks
 │   ├── build_graph.py       # Phase 3 step 3: graph + temporal splits + figures
+│   ├── build_homophily_notebook.py  # Phase 3 step 4: homophily analysis
+│   ├── run_baselines.py     # Phase 3 step 5: LogReg/RF/XGBoost/MLP/Dummy
+│   ├── build_baselines_notebook.py  # Phase 3 step 5 notebook builder
+│   ├── build_flow_figure.py # Teacher-demo transaction-flow figure
 │   ├── build_eda_notebook.py / build_graph_notebook.py / run_notebook.py
 │   └── gen_eda_reports.py
 ├── results/
 │   ├── eda_summary.md       # Phase 2 findings (computed statistics)
 │   ├── leakage_analysis.md  # Leakage audit
+│   ├── homophily_analysis.md  # Phase 3 step 4 findings
+│   ├── baseline_summary.md  # Phase 3 step 5 results
 │   └── figures/eda/         # 9 EDA plots
 ├── models/                  # Saved weights (gitignored)
 └── tests/                   # Unit tests
@@ -242,10 +332,12 @@ Rules that always apply:
 - [x] `02` Graph construction — directed tx-tx money-flow graph built & validated;
       **temporal** splits: train steps 1–34, val 35–41, test 42–49 (never random);
       artifacts in `data/processed/` (see Phase 3 section above)
-- [ ] `03` Homophily analysis — edge/node homophily, class-wise assortativity,
-      per-timestep drift, structural baseline (0.9537) to beat
-- [ ] `04` Baseline models — LogReg / RandomForest / XGBoost / MLP
-      (class-weighted losses, PR-AUC — not accuracy)
+- [x] `03` Homophily analysis — edge/node homophily, class-wise assortativity,
+      per-timestep drift, structural baseline (h_lab 0.9537 vs baseline 0.9043;
+      illicit enrichment 5.9×; majority-neighbour transductive PR-AUC 0.3932)
+- [x] `04` Baseline models — LogReg / RandomForest / XGBoost / MLP
+      (class-weighted losses, PR-AUC — not accuracy); best XGBoost test
+      PR-AUC 0.5652 (val 0.9344)
 - [ ] `05` GNN experiments — GCN, GAT, GraphSAGE → **homophily-aware variants**
       (class-conditional / heterophily-aware message passing)
 - [ ] Fraud-ring level evaluation + explainability; ablation with/without
