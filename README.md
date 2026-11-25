@@ -29,7 +29,7 @@ smoothing over heterophilic edges hurts detection. This project:
 | **Phase 3 — Step 3: Graph construction & temporal split** | ✅ Complete | Directed money-flow graph built & validated (`notebooks/02_graph_construction.ipynb`, 7 cells, 0 errors); temporal train/val/test splits defined — see below |
 | **Phase 3 — Step 4: Homophily analysis** | ✅ Complete | Edge/node homophily recomputed & confirmed vs Phase 2 (h_lab 0.9537 vs baseline 0.9043); per-timestep drift; feature homophily; transductive majority-neighbour structural baseline (`notebooks/03_homophily_analysis.ipynb`, 8 cells, 0 errors) |
 | **Phase 3 — Step 5: Baseline models** | ✅ Complete | LogReg / RandomForest / XGBoost / MLP / Dummy on temporal splits, class weighting only (`notebooks/04_baseline_models.ipynb`, 7 cells, 0 errors) — best: XGBoost, test PR-AUC 0.5652 |
-| **Phase 3 — Step 6: GNN experiments** | ⬜ Not started | GCN / GAT / GraphSAGE → homophily-aware variants, fraud-ring evaluation (see Roadmap) |
+| **Phase 3 — Step 6: GNN experiments** | ✅ Complete | GCN / GAT / GraphSAGE / H2GCN-style / GatedGCN on temporal splits, class-weighted loss only, transductive message passing (`notebooks/05_gnn_experiments.ipynb`, 10 cells, 0 errors) — best: GraphSAGE, test PR-AUC 0.4746, which does **not** beat XGBoost (0.5652); fraud-ring evaluation + GAT attention + feature ablation included — see below |
 
 **Headline findings from Phase 2** (all computed, none estimated):
 
@@ -66,8 +66,35 @@ Full detail: [`results/eda_summary.md`](results/eda_summary.md) ·
   non-dummy model — but it peeks at neighbour labels, so it is an upper
   bound, not a fair model.
 
+**Headline findings from Step 6** (all computed, none estimated):
+
+- **The GNNs did not beat XGBoost.** Best GNN is GraphSAGE — test
+  PR-AUC **0.4746** (val 0.7996) — below XGBoost's **0.5652** by 0.0906.
+  H2GCN-style is second (0.4102), ahead of vanilla GCN (0.2577) and GAT
+  (0.2502), so the homophily-aware design helped — but not enough to
+  clear the tree bar on future transactions. GAT has the highest recall
+  (0.8701) and the worst precision (0.0957): it over-predicts illicit.
+- **The temporal gap hits GNNs hardest:** every GNN drops sharply from
+  val to test (GraphSAGE 0.800 → 0.475, H2GCN 0.782 → 0.410) — the same
+  gap the baselines showed, only wider.
+- **Fraud-ring structure is fragmented, not dense:** the predicted-illicit
+  subgraph on test has 330 weak components (largest 6 nodes, 290
+  singletons) — nearly identical to the true-illicit subgraph (332
+  components, largest 12). The predicted illicit→illicit edge rate
+  (0.2877) closely matches the observed rate (0.2961). Descriptive only
+  — no organised rings are claimed.
+- **GAT attention does distinguish edge types:** illicit→illicit edges
+  get mean attention 0.4505 vs 0.0653 for illicit→licit — but attention
+  alone did not save GAT's precision.
+- **Feature ablation (best model):** local-only and local+aggregate both
+  give test PR-AUC 0.4143 — the 72 aggregate features add nothing on
+  test. The 17 named statistics add +0.06 (0.4143 → 0.4746).
+
 Full detail: [`results/homophily_analysis.md`](results/homophily_analysis.md) ·
-[`results/baseline_summary.md`](results/baseline_summary.md)
+[`results/baseline_summary.md`](results/baseline_summary.md) ·
+[`results/gnn_summary.md`](results/gnn_summary.md)
+
+**Headline findings from Step 6** (all computed, none estimated):
 
 ---
 
@@ -170,6 +197,68 @@ must beat.
 **Artifacts:** `results/baseline_results.json` ·
 [`results/baseline_summary.md`](results/baseline_summary.md) · figures in
 `results/figures/baselines/`
+
+---
+
+## Phase 3 — GNN experiments ✅
+
+### Step 6 — GNN experiments
+
+Five GNNs on the temporal splits — the models the baselines were the bar
+for. Executed end to end in `notebooks/05_gnn_experiments.ipynb` (10 code
+cells, 0 errors); pipeline script: `scripts/run_gnn.py`.
+
+**Setup:** all 183 features + missingness indicator — the identical
+pipeline to Step 5 (median imputation fit on train only, StandardScaler
+fit on train only); aggregation over **incoming** neighbours (money
+senders), respecting the directed money-flow direction; class-weighted
+BCE loss only — no SMOTE, no oversampling; full-batch training, Adam lr
+0.01, weight decay 5e-4, dropout 0.5, hidden 64, 2 layers, up to 200
+epochs, early stopping on val PR-AUC (patience 20). Transductive message
+passing: all node features/edges visible, loss on train labels only;
+selection on val, final numbers on test. Framework: PyTorch 2.15.0+cpu,
+torch-geometric 2.8.1, CPU-only.
+
+| Model | Val PR-AUC | Test PR-AUC | Test ROC-AUC | Test F1@0.5 | Fit (s) | Best epoch |
+|---|---|---|---|---|---|---|
+| **GraphSAGE (mean)** | **0.7996** | **0.4746** | 0.8689 | 0.4631 | 303.6 | 140 |
+| H2GCN-style | 0.7824 | 0.4102 | 0.8746 | 0.4235 | 953.1 | 86 |
+| GatedGCN | 0.6881 | 0.3449 | 0.8656 | 0.3420 | 210.5 | 22 |
+| GCN | 0.5944 | 0.2577 | 0.7943 | 0.3203 | 171.7 | 130 |
+| GAT (4 heads) | 0.4708 | 0.2502 | 0.8212 | 0.1724 | 133.4 | 36 |
+| *XGBoost (Step 5, reference)* | *0.9344* | *0.5652* | *0.8542* | *0.5928* | *14.0* | *—* |
+
+![GNN test PR-AUC vs XGBoost bar](results/figures/gnn/gnn_pr_auc_bars.png)
+![Precision–Recall curves on test](results/figures/gnn/gnn_pr_curves.png)
+
+**Reading the results:** the honest outcome is that no GNN cleared the
+XGBoost bar on test PR-AUC — the graph signal, as used here, adds less
+than the tree model extracts from the 183 features on future
+transactions. The homophily-aware variants still beat the vanilla GNNs
+(H2GCN 0.4102 vs GCN 0.2577), which supports the Step 4 motivation, and
+GraphSAGE's mean aggregation was the most robust of the five. The
+val→test drop is wider for GNNs than for the trees, suggesting the
+learned message passing overfits the training time steps more than the
+tabular models do — a direction for follow-up work (see
+`results/gnn_summary.md` §7).
+
+**Fraud-ring evaluation (descriptive, test):** the predicted-illicit
+subgraph (best model, GraphSAGE) has 330 weak components (largest 6
+nodes, 290 singletons) — nearly identical to the true-illicit subgraph
+(332 components, largest 12). The predicted illicit→illicit edge rate
+(0.2877) closely matches the observed rate (0.2961). Descriptive only —
+no organised rings are claimed.
+
+**Explainability:** GAT attention distinguishes edge types —
+illicit→illicit edges get mean attention 0.4505 vs 0.0653 for
+illicit→licit — but attention alone did not save GAT's precision.
+Feature ablation (GraphSAGE): local-only and local+aggregate both give
+test PR-AUC 0.4143 — the 72 aggregate features add nothing on test;
+the 17 named statistics add +0.06 (0.4143 → 0.4746).
+
+**Artifacts:** `results/gnn_results.json` ·
+[`results/gnn_summary.md`](results/gnn_summary.md) · figures in
+`results/figures/gnn/`
 
 ---
 
@@ -296,7 +385,7 @@ Rules that always apply:
 │   ├── 02_graph_construction.ipynb # ✅ Phase 3 step 3, executed
 │   ├── 03_homophily_analysis.ipynb # ✅ Phase 3 step 4, executed
 │   ├── 04_baseline_models.ipynb    # ✅ Phase 3 step 5, executed
-│   └── 05_gnn_experiments.ipynb    # ⬜ Phase 3 step 6
+│   └── 05_gnn_experiments.ipynb    # ✅ Phase 3 step 6, executed
 ├── src/
 │   ├── data/                # Dataset loading, graph building
 │   ├── models/              # GNN architectures (incl. homophily-aware variants)
@@ -309,6 +398,8 @@ Rules that always apply:
 │   ├── build_homophily_notebook.py  # Phase 3 step 4: homophily analysis
 │   ├── run_baselines.py     # Phase 3 step 5: LogReg/RF/XGBoost/MLP/Dummy
 │   ├── build_baselines_notebook.py  # Phase 3 step 5 notebook builder
+│   ├── run_gnn.py           # Phase 3 step 6: GCN/GAT/SAGE/H2GCN/GatedGCN
+│   ├── build_gnn_notebook.py  # Phase 3 step 6 notebook builder
 │   ├── build_flow_figure.py # Teacher-demo transaction-flow figure
 │   ├── build_eda_notebook.py / build_graph_notebook.py / run_notebook.py
 │   └── gen_eda_reports.py
@@ -317,6 +408,7 @@ Rules that always apply:
 │   ├── leakage_analysis.md  # Leakage audit
 │   ├── homophily_analysis.md  # Phase 3 step 4 findings
 │   ├── baseline_summary.md  # Phase 3 step 5 results
+│   ├── gnn_summary.md       # Phase 3 step 6 results
 │   └── figures/eda/         # 9 EDA plots
 ├── models/                  # Saved weights (gitignored)
 └── tests/                   # Unit tests
@@ -338,9 +430,11 @@ Rules that always apply:
 - [x] `04` Baseline models — LogReg / RandomForest / XGBoost / MLP
       (class-weighted losses, PR-AUC — not accuracy); best XGBoost test
       PR-AUC 0.5652 (val 0.9344)
-- [ ] `05` GNN experiments — GCN, GAT, GraphSAGE → **homophily-aware variants**
-      (class-conditional / heterophily-aware message passing)
-- [ ] Fraud-ring level evaluation + explainability; ablation with/without
+- [x] `05` GNN experiments — GCN, GAT, GraphSAGE → **homophily-aware variants**
+      (H2GCN-style, GatedGCN); best GraphSAGE test PR-AUC 0.4746 — did
+      **not** beat XGBoost 0.5652; fraud-ring evaluation + explainability
+      done (see Step 6 section above)
+- [x] Fraud-ring level evaluation + explainability; ablation with/without
       aggregate features (construction semantics unverified — see
       `results/leakage_analysis.md`)
 

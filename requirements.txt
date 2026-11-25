@@ -5,3 +5,10 @@ matplotlib>=3.7
 scikit-learn>=1.3
 xgboost>=2.0
 nbformat>=5.9
+
+# Step 6 (GNN experiments): CPU-only PyTorch. The +cpu local version is
+# newer than the PyPI CUDA build, so pip picks the CPU wheel from the
+# extra index below. Do NOT replace with a CUDA wheel (no GPU here).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.15.0+cpu
+torch-geometric==2.8.1
